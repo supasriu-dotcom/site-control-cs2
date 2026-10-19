@@ -122,21 +122,115 @@ if(p.team==='T'&&bomb.car===p&&!bomb.pl){const s=siteOf(p);if(s){p.act+=dt;if(p.
 else if(p.team==='C'&&bomb.pl&&dist(p,bomb)<45){bomb.dfn=1;bomb.df+=dt*(p.kit?2:1);p.act=bomb.df}}else p.act=0}
 function human(p,dt){const ix=(keys.d?1:0)-(keys.a?1:0),iy=(keys.s?1:0)-(keys.w?1:0);p.a=Math.atan2(mouse.y-H/2,mouse.x-W/2);
 phys(p,dt,state==='freeze'?0:ix,state==='freeze'?0:iy,keys.Shift);if(mouse.down&&!ui()&&(mouse.edge||(WP[p.cur]||{}).auto))fire(p);acts(p,dt,keys.e)}
-function bot(p,dt){p.th-=dt;p.rt-=dt;p.seen-=dt;p.stt-=dt;
-if(p.th<=0){p.th=.22+rnd()*.16;let b=null,bd=1e9;for(const e of P){if(!e.alive||e.team===p.team)continue;const d=dist(p,e);if(d<bd&&d<950&&(Math.abs(angd(Math.atan2(e.y-p.y,e.x-p.x),p.a))<1||d<130)&&los(p,e)){b=e;bd=d}}
-if(b){if(p.tgt!==b){p.rt=.65+rnd()*.8;p.aimOff=(rnd()-.5)*.38;}p.tgt=b;p.seen=.65+rnd()*.25;p.tx=b.x+(rnd()-.5)*45;p.ty=b.y+(rnd()-.5)*45;if(p.g.f&&bd>250&&bd<650&&rnd()<.1&&state==='live')throwG(p,'f')}}
-let ix=0,iy=0,want=0;const tg=p.seen>0&&p.flash<.4&&p.tgt;
-if(state==='live'){if(tg){const ta=Math.atan2(p.ty-p.y,p.tx-p.x)+p.aimOff;p.a+=Math.max(-2.5*dt,Math.min(2.5*dt,angd(ta,p.a)));
-if(rnd()<dt*.7)p.aimOff+=(rnd()-.5)*.10; p.aimOff=Math.max(-.32,Math.min(.32,p.aimOff));
-if(p.stt<=0){p.st=-p.st;p.stt=.6+rnd()}ix=-Math.sin(ta)*p.st*.4;iy=Math.cos(ta)*p.st*.4;
-if(p.rt<=0&&p.tgt.alive&&los(p,p.tgt)&&Math.abs(angd(Math.atan2(p.tgt.y-p.y,p.tgt.x-p.x),p.a))<.16&&rnd()<.58)fire(p)}
-else if(p.flash<.4){const T=p.team==='T';let site=p.goal;if(bomb.pl)site=bomb.site;const f=site==='A'?FA:FB,s=step(f,p);
-let hold=T&&bomb.pl;if(T&&bomb.car===p&&!bomb.pl&&siteOf(p)){hold=1;want=1}
-else if(!T&&bomb.pl&&dist(p,bomb)<40){hold=1;want=1}else if(!T&&!bomb.pl&&s.d<=3+p.idx*2)hold=1;else if(T&&!bomb.pl&&bomb.car!==p&&s.d<=6+p.idx*2)hold=1;
-if(!T&&bomb.pl&&!hold&&dist(p,bomb)<300){const a=Math.atan2(bomb.y-p.y,bomb.x-p.x);ix=Math.cos(a);iy=Math.sin(a)}
-else if(!hold&&s.t){const a=Math.atan2(s.t[1]-p.y,s.t[0]-p.x);ix=Math.cos(a);iy=Math.sin(a);p.a+=Math.max(-6*dt,Math.min(6*dt,angd(a,p.a)))}
-else p.a+=Math.sin(performance.now()/900+p.idx)*dt}}
-phys(p,dt,ix,iy,0);acts(p,dt,want)}
+function bot(p,dt){
+ p.th-=dt;p.rt-=dt;p.seen-=dt;p.stt-=dt;
+ if(p.th<=0){
+  p.th=.22+rnd()*.16;let b=null,bd=1e9;
+  for(const e of P){
+   if(!e.alive||e.team===p.team)continue;
+   const d=dist(p,e);
+   if(d<bd&&d<950&&(Math.abs(angd(Math.atan2(e.y-p.y,e.x-p.x),p.a))<1||d<130)&&los(p,e)){b=e;bd=d}
+  }
+  if(b){
+   if(p.tgt!==b){p.rt=.65+rnd()*.8;p.aimOff=(rnd()-.5)*.38}
+   p.tgt=b;p.seen=.65+rnd()*.25;p.tx=b.x+(rnd()-.5)*45;p.ty=b.y+(rnd()-.5)*45;
+   if(p.g.f&&bd>250&&bd<650&&rnd()<.1&&state==='live')throwG(p,'f')
+  }
+ }
+ let ix=0,iy=0,want=0;
+ const tg=p.seen>0&&p.flash<.4&&p.tgt&&p.tgt.alive;
+ if(state==='live'){
+  if(tg){
+   const ta=Math.atan2(p.ty-p.y,p.tx-p.x)+p.aimOff;
+   p.a+=Math.max(-2.5*dt,Math.min(2.5*dt,angd(ta,p.a)));
+   if(rnd()<dt*.7)p.aimOff+=(rnd()-.5)*.10;
+   p.aimOff=Math.max(-.32,Math.min(.32,p.aimOff));
+   if(p.stt<=0){p.st=-p.st;p.stt=.6+rnd()}
+   ix=-Math.sin(ta)*p.st*.4;iy=Math.cos(ta)*p.st*.4;
+   if(p.rt<=0&&p.tgt.alive&&los(p,p.tgt)&&Math.abs(angd(Math.atan2(p.tgt.y-p.y,p.tgt.x-p.x),p.a))<.16&&rnd()<.58)fire(p)
+  }else if(p.flash<.4){
+   const T=p.team==='T';
+   // Objective logic: CTs rotate to the planted site; otherwise split across sites.
+   // Ts visit and clear both sites before regrouping, then support the carrier/plant.
+   let site=p.goal;
+   if(bomb.pl){
+    if(T){
+     // After the plant, attackers rally to the bomb site and defend it.
+     site=bomb.site;
+    }else{
+     // Defenders rotate to the bomb site and attempt the defuse.
+     site=bomb.site;
+    }
+   }else if(T){
+    // Keep terrorists moving as a group to clear a site, then rotate to the other.
+    if(!p.clearA)p.clearA=0;
+    if(!p.clearB)p.clearB=0;
+    site=p.goal;
+    const curSite=site==='A'?SA:SB;
+    if(dist(p,curSite)<SR-18){
+     p.clearTimer=(p.clearTimer||0)+dt;
+     if(p.clearTimer>2.8){
+      if(site==='A')p.clearA=1;else p.clearB=1;
+      p.goal=(site==='A'?'B':'A');p.clearTimer=0;
+     }
+    }else p.clearTimer=0;
+    // Carrier prioritizes planting at a clear site; other Ts cover the approach.
+    if(bomb.car===p){
+     const other=p.goal==='A'?SA:SB;
+     const current=p.goal==='A'?SA:SB;
+     const chosen=(p.clearA&&p.clearB)?(rnd()<.5?'A':'B'):p.goal;
+     site=chosen;
+     if(siteOf(p))want=1;
+    }else{
+     // Sweep the second site too, then escort the carrier to its selected site.
+     if(p.clearA&&p.clearB&&bomb.car&&bomb.car.alive){
+      site=bomb.car.goal||p.goal;
+     }
+    }
+   }else{
+    // Before a plant, CTs patrol their assigned site and actively check it.
+    site=p.goal;
+   }
+   const target=site==='A'?SA:SB;
+   const f=site==='A'?FA:FB,s=step(f,p);
+   const nearTarget=dist(p,target)<SR-22;
+   if(T&&bomb.pl){
+    // Stay near the planted bomb to protect it; still move into cover around site.
+    if(dist(p,bomb)<125){want=0;ix=0;iy=0}
+   }else if(!T&&bomb.pl&&dist(p,bomb)<45){
+    want=1;ix=0;iy=0;
+   }else if(!T&&!bomb.pl&&nearTarget){
+    // Sweep within the site instead of endlessly scanning in place.
+    p.patrol=(p.patrol||0)+dt;
+    const a=p.patrol*1.1+p.idx*2.1;
+    ix=Math.cos(a)*.55;iy=Math.sin(a)*.55;
+    if(p.patrol>5.5){p.patrol=0;p.goal=site==='A'?'B':'A'}
+   }else if(T&&!bomb.pl&&bomb.car===p&&nearTarget){
+    want=1;
+   }else if(T&&!bomb.pl&&nearTarget){
+    // Clear the site by moving through it, not standing still.
+    p.patrol=(p.patrol||0)+dt;
+    const a=p.patrol*1.25+p.idx*1.7;
+    ix=Math.cos(a)*.65;iy=Math.sin(a)*.65;
+    if(p.patrol>3.5){p.patrol=0;if(site==='A')p.clearA=1;else p.clearB=1;p.goal=site==='A'?'B':'A'}
+   }else if(s.t){
+    const a=Math.atan2(s.t[1]-p.y,s.t[0]-p.x);
+    ix=Math.cos(a);iy=Math.sin(a);
+    p.a+=Math.max(-6*dt,Math.min(6*dt,angd(a,p.a)));
+   }else{
+    // If pathfinding yields no next node, pick a valid site waypoint and keep moving.
+    const a=Math.atan2(target.y-p.y,target.x-p.x);
+    ix=Math.cos(a);iy=Math.sin(a);p.a+=Math.max(-4*dt,Math.min(4*dt,angd(a,p.a)));
+   }
+   if(!T&&bomb.pl&&dist(p,bomb)<45)want=1;
+   if(T&&bomb.car===p&&!bomb.pl&&siteOf(p))want=1;
+   if(!want&&Math.hypot(ix,iy)>.1){
+    const a=Math.atan2(iy,ix);p.a+=Math.max(-6*dt,Math.min(6*dt,angd(a,p.a)));
+   }
+  }
+ }
+ phys(p,dt,ix,iy,0);acts(p,dt,want)
+}
 /* ---- loop ---- */
 const ui=()=>!$('menu').classList.contains('h')||paused||!$('buy').classList.contains('h');
 const view=()=>me&&me.alive?me:(P.find(p=>p.alive&&p.team===me.team)||me);
