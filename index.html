@@ -97,7 +97,7 @@ const SK=[{n:'Dust Rust',c:'#b5651d',w:40},{n:'Glacier',c:'#7fd4ff',w:30},{n:'To
 const TK=[{id:'k',t:'Get 10 kills',g:10,r:40},{id:'h',t:'Land 3 headshots',g:3,r:50},{id:'p',t:'Plant the bomb',g:1,r:30},{id:'w',t:'Win 3 rounds',g:3,r:60},{id:'f',t:'Flash 3 enemies',g:3,r:40}];
 const NM=['Rex','Nova','Ghost','Viper','Blaze','Echo','Hawk','Jinx','Onyx'];
 /* ---- state ---- */
-let P=[],me,state='menu',paused=0,rT=0,roundT=100,msg='',score={T:0,C:0},ls={T:0,C:0},bomb={},gr=[],zones=[],tr=[],feed=[],side='C',back='menu',DF=null;
+let P=[],me,state='menu',paused=0,rT=0,roundT=100,msg='',score={T:0,C:0},ls={T:0,C:0},bomb={},gr=[],zones=[],tr=[],feed=[],side='C',back='menu';
 const keys={},mouse={x:0,y:0,down:0,edge:0};let scoped=0;
 function mk(team,name,bot,i){return{team,name,bot,idx:i,x:0,y:0,vx:0,vy:0,a:0,sp:0,stepT:rnd()*.3,hp:100,armor:0,money:800,prim:null,sec:team==='T'?'glock':'usp',kit:0,g:{f:0,s:0,h:0,m:0},am:{},cur:'',rl:0,cool:0,flash:0,act:0,rc:0,alive:1,th:0,rt:0,seen:0,tgt:null,goal:'A',st:1,stt:0,kills:0,deaths:0,aimOff:0,aimTick:0,react:0}}
 function giveAm(p,k){const w=WP[k];if(w.m)p.am[k]={m:w.m,r:w.m*3}}
@@ -108,7 +108,7 @@ function botBuy(p){const T=p.team==='T',m=p.money;if(!p.prim){if(m>=5200&&rnd()<
 buy(p,'kev');if(p.money>=700){buy(p,'s');buy(p,'f')}if(!T)buy(p,'kit')}
 function startMatch(){P=[];let n=0;for(const t of['T','C'])for(let i=0;i<5;i++){const h=t===side&&i===0;P.push(mk(t,h?(sv.name||'Player'):NM[n++%NM.length],!h,i));if(h)me=P[P.length-1]}
 score={T:0,C:0};ls={T:0,C:0};feed=[];newRound(1);open(null)}
-function newRound(first){scoped=0;gr=[];zones=[];tr=[];lts=[];DF=null;bomb={pl:0,t:40,df:0,x:0,y:0,site:'',car:null,drop:null};
+function newRound(first){scoped=0;gr=[];zones=[];tr=[];lts=[];bomb={pl:0,t:40,df:0,x:0,y:0,site:'',car:null,drop:null};
 for(const p of P){if(first||!p.alive){p.prim=null;p.sec=p.team==='T'?'glock':'usp';p.armor=0;p.kit=0;p.g={f:0,s:0,h:0,m:0}}if(first)p.money=800;
 p.alive=1;p.hp=100;p.vx=p.vy=0;p.flash=0;p.act=0;p.rl=0;p.cool=0;p.tgt=null;p.seen=0;p.rc=0;
 if(p.team==='T'){p.x=640+80*p.idx;p.y=1100;p.a=-Math.PI/2}else{p.x=725+37*p.idx;p.y=100;p.a=Math.PI/2}
@@ -152,7 +152,7 @@ const siteOf=p=>dist(p,SA)<SR?'A':dist(p,SB)<SR?'B':'';
 function inBuyZone(p){const b=BZ[p.team];return p.x>=b[0]&&p.x<=b[0]+b[2]&&p.y>=b[1]&&p.y<=b[1]+b[3]}
 function canBuy(p){return !!p&&p.alive&&inBuyZone(p)&&(state==='freeze'||(state==='live'&&roundT>85&&!bomb.pl))}
 function acts(p,dt,want){if(want&&p.sp<35&&p.alive&&state==='live'){
-if(p.team==='T'&&bomb.car===p&&!bomb.pl){const s=siteOf(p);if(s){p.act+=dt;if(p.act>=3){Object.assign(bomb,{pl:1,t:40,x:p.x,y:p.y,site:s,car:null,df:0});DF=field(bomb);p.money+=300;msg='Bomb planted at '+s;sfx('plant',p);if(p===me){sv.st.p++;save()}}}else p.act=0}
+if(p.team==='T'&&bomb.car===p&&!bomb.pl){const s=siteOf(p);if(s){p.act+=dt;if(p.act>=3){Object.assign(bomb,{pl:1,t:40,x:p.x,y:p.y,site:s,car:null});p.money+=300;msg='Bomb planted at '+s;sfx('plant',p);if(p===me){sv.st.p++;save()}}}else p.act=0}
 else if(p.team==='C'&&bomb.pl&&dist(p,bomb)<45){bomb.dfn=1;bomb.df+=dt*(p.kit?2:1);p.act=bomb.df}}else p.act=0}
 function human(p,dt){const ix=(keys.d?1:0)-(keys.a?1:0),iy=(keys.s?1:0)-(keys.w?1:0);p.a=Math.atan2(mouse.y-H/2,mouse.x-W/2);
 phys(p,dt,state==='freeze'?0:ix,state==='freeze'?0:iy,keys.Shift);if(keys.e&&p.team==='T'&&!bomb.pl&&bomb.drop&&dist(p,bomb.drop)<42){bomb.car=p;bomb.drop=null;p.act=0;msg='Bomb picked up'}if(mouse.down&&!ui()&&(mouse.edge||(WP[p.cur]||{}).auto))fire(p);acts(p,dt,keys.e)}
@@ -211,18 +211,15 @@ function bot(p,dt){
    }else{
     site=p.goal;
    }
-   const defuser=bomb.pl?P.filter(q=>q.alive&&q.team==='C').sort((a,b)=>dist(a,bomb)-dist(b,bomb))[0]:null;
-   const target=(!T&&bomb.pl)?bomb:(site==='A'?SA:SB);
-   const f=(!T&&bomb.pl&&DF)?DF:(site==='A'?FA:FB),s=step(f,p);
+   const target=site==='A'?SA:SB;
+   const f=site==='A'?FA:FB,s=step(f,p);
    if(T&&!bomb.pl&&bomb.drop){const bd=dist(p,bomb.drop);if(bd<24){ix=0;iy=0}else{const a=Math.atan2(bomb.drop.y-p.y,bomb.drop.x-p.x);ix=Math.cos(a);iy=Math.sin(a);p.a+=Math.max(-6*dt,Math.min(6*dt,angd(a,p.a)))}want=0;}
    const nearTarget=dist(p,target)<SR-22;
    if(T&&!bomb.pl&&bomb.drop){ /* recovery movement set above */ }
    else if(T&&bomb.pl){
     if(dist(p,bomb)<125){want=0;ix=0;iy=0}
-   }else if(!T&&bomb.pl&&p===defuser&&dist(p,bomb)<34){
+   }else if(!T&&bomb.pl&&dist(p,bomb)<45){
     want=1;ix=0;iy=0;
-   }else if(!T&&bomb.pl&&p===defuser){
-    if(s.t){const a=Math.atan2(s.t[1]-p.y,s.t[0]-p.x);ix=Math.cos(a);iy=Math.sin(a);p.a+=Math.max(-6*dt,Math.min(6*dt,angd(a,p.a)))}
    }else if(!T&&!bomb.pl&&nearTarget){
     p.patrol=(p.patrol||0)+dt;
     const a=p.patrol*1.1+p.idx*2.1;
@@ -243,7 +240,7 @@ function bot(p,dt){
     const a=Math.atan2(target.y-p.y,target.x-p.x);
     ix=Math.cos(a);iy=Math.sin(a);p.a+=Math.max(-4*dt,Math.min(4*dt,angd(a,p.a)));
    }
-   if(!T&&bomb.pl&&p===defuser&&dist(p,bomb)<34)want=1;
+   if(!T&&bomb.pl&&dist(p,bomb)<45)want=1;
    if(T&&bomb.car===p&&!bomb.pl&&siteOf(p))want=1;
    if(!want&&Math.hypot(ix,iy)>.1){
     const a=Math.atan2(iy,ix);p.a+=Math.max(-6*dt,Math.min(6*dt,angd(a,p.a)));
